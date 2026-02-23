@@ -60,7 +60,7 @@ enum class OrderType : u8
     LimitBuy,
     LimitSell,
 };
-auto is_buy(OrderType type) -> bool
+inline auto is_buy(OrderType type) -> bool
 {
     return (type == OrderType::LimitBuy);
 }

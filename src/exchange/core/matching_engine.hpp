@@ -22,24 +22,6 @@ struct Order
     u64 timestamp;
 };
 
-struct OrderMaxHeapSorter
-{
-    [[nodiscard]] auto operator()(const Order& a, const Order& b) const noexcept -> bool
-    {
-        return a.timestamp < b.timestamp;
-    };
-};
-using OrderMaxHeap = std::priority_queue<Order, std::vector<Order>, OrderMaxHeapSorter>;
-
-struct OrderMinHeapSorter
-{
-    [[nodiscard]] auto operator()(const Order& a, const Order& b) const noexcept -> bool
-    {
-        return a.timestamp > b.timestamp;
-    };
-};
-using OrderMinHeap = std::priority_queue<Order, std::vector<Order>, OrderMinHeapSorter>;
-
 class MatchingEngine
 {
   public:
@@ -62,8 +44,12 @@ class MatchingEngine
         return sell_levels_map_.size();
     }
 
-    auto submit_order(const Order& order) -> void
+    auto submit_order(const Order& order) -> bool
     {
+        if (order.symbol != symbol_)
+        {
+            return false;
+        }
         if (is_buy(order.type))
         {
             if (auto it = buy_levels_map_.find(order.price); it != buy_levels_map_.end())
@@ -86,11 +72,12 @@ class MatchingEngine
                 sell_levels_map_[order.price].push({order});
             }
         }
+        return true;
     }
 
   private:
-    std::map<Price, OrderMaxHeap> buy_levels_map_{};
-    std::map<Price, OrderMaxHeap> sell_levels_map_{};
+    std::map<Price, std::queue<Order>, std::greater<Price>> buy_levels_map_{};
+    std::map<Price, std::queue<Order>, std::less<Price>> sell_levels_map_{};
 
     Symbol symbol_;
 };
