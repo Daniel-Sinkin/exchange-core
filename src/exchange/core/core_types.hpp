@@ -2,15 +2,16 @@
 // pba/core/core_types.hpp
 #pragma once
 
+#include "exchange/core/gsl.hpp"
+
 #include <assert.h>
 #include <chrono>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include "exchange/core/gsl.hpp"
 
-namespace ds_pba
+namespace ds_exch
 {
 using usize = std::size_t;
 using isize = std::ptrdiff_t;
@@ -44,10 +45,29 @@ using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
 using Duration = std::chrono::duration<f64>;
 
+using OrderId = u64;
+
+enum class Symbol
+{
+    AAPL,
+    _count,
+    _invalid
+};
+
+enum class OrderType : u8
+{
+    LimitBuy,
+    LimitSell
+};
+auto is_buy(OrderType type) -> bool
+{
+    return (type == OrderType::LimitBuy);
+}
+
 template <typename T>
     requires(std::unsigned_integral<T>)
 [[nodiscard]] constexpr auto is_power_of_two(T x) noexcept -> bool
 {
     return x != T{0} && (x & (x - T{1})) == T{0};
 }
-}  // namespace ds_pba
+}  // namespace ds_exch

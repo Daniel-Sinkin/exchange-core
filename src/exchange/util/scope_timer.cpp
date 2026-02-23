@@ -4,7 +4,7 @@
 
 #include <print>
 
-namespace ds_pba
+namespace ds_exch
 {
 
 ScopeTimer::ScopeTimer(std::string_view label) noexcept : label_(label), start_(Clock::now())
@@ -25,4 +25,4 @@ ScopeTimer::~ScopeTimer() noexcept
     }
 }
 
-}  // namespace ds_pba
+}  // namespace ds_exch
