@@ -39,3 +39,18 @@
 
 # debug information files
 *.dwo
+
+# CMake build artifacts
+/build*/
+/CMakeFiles/
+/CMakeCache.txt
+/CTestTestfile.cmake
+/cmake_install.cmake
+/Makefile
+/Testing/
+
+# Clangd compilation database
+/compile_commands.json
+
+# Local cache
+/.cache/
