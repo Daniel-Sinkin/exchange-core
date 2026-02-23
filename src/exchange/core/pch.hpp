@@ -1,0 +1,30 @@
+#pragma once
+
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <csignal>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <expected>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <memory>
+#include <numbers>
+#include <optional>
+#include <print>
+#include <ranges>
+#include <span>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "exchange/core/gsl.hpp"
