@@ -16,6 +16,7 @@
 #include <filesystem>     // IWYU pragma: keep
 #include <format>         // IWYU pragma: keep
 #include <fstream>        // IWYU pragma: keep
+#include <map>            // IWYU pragma: keep
 #include <memory>         // IWYU pragma: keep
 #include <numbers>        // IWYU pragma: keep
 #include <optional>       // IWYU pragma: keep

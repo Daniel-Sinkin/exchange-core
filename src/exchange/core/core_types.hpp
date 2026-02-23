@@ -47,22 +47,29 @@ using Duration = std::chrono::duration<f64>;
 
 using OrderId = u64;
 
+using Price = i64;
+using Quantity = i64;
+
 enum class Symbol
 {
     AAPL,
-    _count,
-    _invalid
 };
 
 enum class OrderType : u8
 {
     LimitBuy,
-    LimitSell
+    LimitSell,
 };
 auto is_buy(OrderType type) -> bool
 {
     return (type == OrderType::LimitBuy);
 }
+
+enum class TimeInForce : u8
+{
+    DAY,
+    GTC
+};
 
 template <typename T>
     requires(std::unsigned_integral<T>)
