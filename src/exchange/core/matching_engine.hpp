@@ -5,6 +5,7 @@
 #include "exchange/core/core_types.hpp"
 #include "exchange/core/pch.hpp"
 
+#include <algorithm>
 #include <format>
 #include <limits>
 #include <map>
@@ -20,7 +21,7 @@ struct Order
     Symbol symbol;
     OrderType type;
     Price price;
-    Quantity quantity;
+    Quantity qty;
     TimeInForce time_in_force;
     u64 sender_id;
     u64 timestamp;
@@ -30,7 +31,7 @@ struct OrderDebugView
 {
     u64 timestamp;
     OrderId order_id;
-    Quantity quantity;
+    Quantity qty;
 };
 
 struct PriceLevelDebugView
@@ -46,11 +47,22 @@ struct OrderBookDebugSnapshot
     std::vector<PriceLevelDebugView> sell_levels;
 };
 
+struct Trade
+{
+    OrderId buy_id;
+    OrderId sell_id;
+    Price price;
+    Quantity qty;
+    u64 timestamp;
+    u64 trade_seq;
+};
+
 class MatchingEngine
 {
   public:
     MatchingEngine(Symbol symbol) : symbol_(symbol)
     {
+        trade_record_tape_.reserve(1024);
     }
 
     [[nodiscard]] auto symbol() const -> Symbol
@@ -128,15 +140,23 @@ class MatchingEngine
             auto& buy_order = buy_level_queue.front();
             auto& sell_order = sell_level_queue.front();
 
-            const auto fill_qty = std::min(buy_order.quantity, sell_order.quantity);
-            buy_order.quantity -= fill_qty;
-            sell_order.quantity -= fill_qty;
+            const auto fill_qty = std::min(buy_order.qty, sell_order.qty);
+            buy_order.qty -= fill_qty;
+            sell_order.qty -= fill_qty;
+            trade_record_tape_.emplace_back(
+                buy_order.id,
+                sell_order.id,
+                sell_order.price,
+                fill_qty,
+                std::max(buy_order.timestamp, sell_order.timestamp),
+                current_trade_seq_++
+            );
 
-            if (buy_order.quantity == 0u)
+            if (buy_order.qty == 0u)
             {
                 buy_level_queue.pop();
             }
-            if (sell_order.quantity == 0u)
+            if (sell_order.qty == 0u)
             {
                 sell_level_queue.pop();
             }
@@ -189,7 +209,7 @@ class MatchingEngine
                     OrderDebugView{
                         .timestamp = order.timestamp,
                         .order_id = order.id,
-                        .quantity = order.quantity,
+                        .qty = order.qty,
                     }
                 );
                 level_queue_copy.pop();
@@ -208,8 +228,11 @@ class MatchingEngine
 
     std::map<Price, std::queue<Order>, std::greater<Price>> buy_levels_map_{};
     std::map<Price, std::queue<Order>, std::less<Price>> sell_levels_map_{};
+    std::vector<Trade> trade_record_tape_{};
 
     Symbol symbol_;
+
+    u64 current_trade_seq_{0};
 };
 }  // namespace ds_exch
 
@@ -237,7 +260,7 @@ struct std::formatter<ds_exch::Order>
             ds_exch::to_string(order.symbol),
             ds_exch::to_string(order.type),
             order.price,
-            order.quantity,
+            order.qty,
             ds_exch::to_string(order.time_in_force),
             order.sender_id,
             order.timestamp
@@ -288,7 +311,7 @@ struct std::formatter<ds_exch::OrderDebugView>
         -> std::format_context::iterator
     {
         return std::format_to(
-            ctx.out(), "({}, {}, {})", order.timestamp, order.order_id, order.quantity
+            ctx.out(), "({}, {}, {})", order.timestamp, order.order_id, order.qty
         );
     }
 };

@@ -67,8 +67,8 @@ auto parse_order_from_tokens(const std::vector<std::string>& tokens) -> std::opt
         std::println(std::cerr, "Failed to parse price");
         return std::nullopt;
     }
-    const auto quantity_res = parse_u64(tokens[4]);
-    if (!quantity_res || *quantity_res == 0)
+    const auto qty_res = parse_u64(tokens[4]);
+    if (!qty_res || *qty_res == 0)
     {
         std::println(std::cerr, "Failed to parse quantity");
         return std::nullopt;
@@ -96,7 +96,7 @@ auto parse_order_from_tokens(const std::vector<std::string>& tokens) -> std::opt
         .symbol = *symbol_res,
         .type = *order_type_res,
         .price = *price_res,
-        .quantity = *quantity_res,
+        .qty = *qty_res,
         .time_in_force = *tif_res,
         .sender_id = *sender_id_res,
         .timestamp = *timestamp_res
@@ -114,7 +114,6 @@ int main()
     {
         std::vector<Order> out{};
         out.reserve(128);
-        // Skip first line
         auto is_first = true;
         while (true)
         {
@@ -129,7 +128,6 @@ int main()
                 is_first = false;
                 continue;
             }
-            std::println("{}", line);
             std::vector<std::string> tokens{};
             tokens.reserve(8);
             std::string token;
