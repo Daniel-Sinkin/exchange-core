@@ -117,9 +117,7 @@ int main()
         if (!trade_history_file.is_open())
         {
             std::println(
-                std::cerr,
-                "Failed to open '{}' for truncation before run.",
-                trade_history_path
+                std::cerr, "Failed to open '{}' for truncation before run.", trade_history_path
             );
             return 1;
         }
