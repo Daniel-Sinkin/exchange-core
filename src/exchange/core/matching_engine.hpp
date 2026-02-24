@@ -53,17 +53,17 @@ class MatchingEngine
     {
     }
 
-    auto symbol() const -> Symbol
+    [[nodiscard]] auto symbol() const -> Symbol
     {
         return symbol_;
     }
 
-    auto get_num_buy_levels() const -> usize
+    [[nodiscard]] auto get_num_buy_levels() const -> usize
     {
         return buy_levels_map_.size();
     }
 
-    auto get_num_sell_levels() const -> usize
+    [[nodiscard]] auto get_num_sell_levels() const -> usize
     {
         return sell_levels_map_.size();
     }
@@ -99,6 +99,59 @@ class MatchingEngine
         return true;
     }
 
+    auto match() -> void
+    {
+        while (!buy_levels_map_.empty() && !sell_levels_map_.empty())
+        {
+            auto buy_level_it = buy_levels_map_.begin();
+            auto sell_level_it = sell_levels_map_.begin();
+
+            if (buy_level_it->first < sell_level_it->first)
+            {
+                break;
+            }
+
+            auto& buy_level_queue = buy_level_it->second;
+            auto& sell_level_queue = sell_level_it->second;
+
+            if (buy_level_queue.empty())
+            {
+                buy_levels_map_.erase(buy_level_it);
+                continue;
+            }
+            if (sell_level_queue.empty())
+            {
+                sell_levels_map_.erase(sell_level_it);
+                continue;
+            }
+
+            auto& buy_order = buy_level_queue.front();
+            auto& sell_order = sell_level_queue.front();
+
+            const auto fill_qty = std::min(buy_order.quantity, sell_order.quantity);
+            buy_order.quantity -= fill_qty;
+            sell_order.quantity -= fill_qty;
+
+            if (buy_order.quantity == 0u)
+            {
+                buy_level_queue.pop();
+            }
+            if (sell_order.quantity == 0u)
+            {
+                sell_level_queue.pop();
+            }
+
+            if (buy_level_queue.empty())
+            {
+                buy_levels_map_.erase(buy_level_it);
+            }
+            if (sell_level_queue.empty())
+            {
+                sell_levels_map_.erase(sell_level_it);
+            }
+        }
+    }
+
     [[nodiscard]] auto debug_snapshot(usize max_levels = std::numeric_limits<usize>::max()) const
         -> OrderBookDebugSnapshot
     {
@@ -132,11 +185,13 @@ class MatchingEngine
             while (!level_queue_copy.empty())
             {
                 const auto& order = level_queue_copy.front();
-                order_snapshots.push_back(OrderDebugView{
-                    .timestamp = order.timestamp,
-                    .order_id = order.id,
-                    .quantity = order.quantity,
-                });
+                order_snapshots.push_back(
+                    OrderDebugView{
+                        .timestamp = order.timestamp,
+                        .order_id = order.id,
+                        .quantity = order.quantity,
+                    }
+                );
                 level_queue_copy.pop();
             }
 

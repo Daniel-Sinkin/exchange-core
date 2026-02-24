@@ -1,8 +1,9 @@
 // app/main.cpp
+#include "exchange/core/pch.hpp"  // IWYU pragma: keep
+//
 #include "exchange/core/constants.hpp"
 #include "exchange/core/core_types.hpp"
 #include "exchange/core/matching_engine.hpp"
-#include "exchange/core/pch.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -113,6 +114,8 @@ int main()
     {
         std::vector<Order> out{};
         out.reserve(128);
+        // Skip first line
+        auto is_first = true;
         while (true)
         {
             std::string line;
@@ -120,6 +123,11 @@ int main()
             if (line.empty())
             {
                 return out;
+            }
+            if (is_first)
+            {
+                is_first = false;
+                continue;
             }
             std::println("{}", line);
             std::vector<std::string> tokens{};
@@ -145,6 +153,8 @@ int main()
         me.submit_order(order);
     }
 
-    std::println("{}\n{}", me, me.debug_snapshot());
+    std::println("Before matching: {}\n{}", me, me.debug_snapshot());
+    me.match();
+    std::println("After matching: {}\n{}", me, me.debug_snapshot());
     return 0;
 }
