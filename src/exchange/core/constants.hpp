@@ -19,6 +19,8 @@ inline constexpr usize k_mib{1024zu * k_kib};
 //
 inline constexpr OrderId k_invalid_order_id{std::numeric_limits<OrderId>::max()};
 
+inline constexpr char k_input_delimiter{','};
+
 namespace detail
 {  // Guardrails and invariants
 static_assert(k_kib > 0zu);

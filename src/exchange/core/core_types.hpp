@@ -10,6 +10,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <optional>
+#include <string_view>
+#include <type_traits>
 
 namespace ds_exch
 {
@@ -48,18 +51,38 @@ using Duration = std::chrono::duration<f64>;
 using OrderId = u64;
 
 using Price = i64;
-using Quantity = i64;
+using Quantity = u64;
 
 enum class Symbol
 {
     AAPL,
 };
+[[nodiscard]] constexpr auto to_string(Symbol symbol) noexcept -> std::string_view
+{
+    switch (symbol)
+    {
+        case Symbol::AAPL:
+            return "AAPL";
+    }
+    return "UnknownSymbol";
+}
 
 enum class OrderType : u8
 {
     LimitBuy,
     LimitSell,
 };
+[[nodiscard]] constexpr auto to_string(OrderType type) noexcept -> std::string_view
+{
+    switch (type)
+    {
+        case OrderType::LimitBuy:
+            return "LimitBuy";
+        case OrderType::LimitSell:
+            return "LimitSell";
+    }
+    return "UnknownOrderType";
+}
 inline auto is_buy(OrderType type) -> bool
 {
     return (type == OrderType::LimitBuy);
@@ -70,6 +93,63 @@ enum class TimeInForce : u8
     DAY,
     GTC
 };
+[[nodiscard]] constexpr auto to_string(TimeInForce tif) noexcept -> std::string_view
+{
+    switch (tif)
+    {
+        case TimeInForce::DAY:
+            return "DAY";
+        case TimeInForce::GTC:
+            return "GTC";
+    }
+    return "UnknownTimeInForce";
+}
+
+template <typename T>
+inline constexpr bool k_always_false = false;
+
+template <typename Enum>
+[[nodiscard]] constexpr auto from_string(std::string_view in) -> std::optional<Enum>
+{
+    if constexpr (std::is_same_v<Enum, Symbol>)
+    {
+        if (in == "AAPL")
+        {
+            return Symbol::AAPL;
+        }
+        return std::nullopt;
+    }
+    else if constexpr (std::is_same_v<Enum, OrderType>)
+    {
+        if (in == "LimitBuy")
+        {
+            return OrderType::LimitBuy;
+        }
+        if (in == "LimitSell")
+        {
+            return OrderType::LimitSell;
+        }
+        return std::nullopt;
+    }
+    else if constexpr (std::is_same_v<Enum, TimeInForce>)
+    {
+        if (in == "DAY")
+        {
+            return TimeInForce::DAY;
+        }
+        if (in == "GTC")
+        {
+            return TimeInForce::GTC;
+        }
+        return std::nullopt;
+    }
+    else
+    {
+        static_assert(
+            k_always_false<Enum>, "from_string only supports Symbol, OrderType, TimeInForce."
+        );
+    }
+}
 
 template <typename T>
     requires(std::unsigned_integral<T>)

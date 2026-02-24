@@ -7,6 +7,7 @@ TARGET="${TARGET:-main}"
 CXX_COMPILER="${CXX_COMPILER:-/opt/homebrew/opt/llvm/bin/clang++}"
 BUILD_TESTING="${BUILD_TESTING:-OFF}"
 EXPORT_COMPILE_COMMANDS="${EXPORT_COMPILE_COMMANDS:-ON}"
+INPUT_FILE="${INPUT_FILE:-$ROOT_DIR/tests/data/input.csv}"
 
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
   -DCMAKE_CXX_COMPILER="$CXX_COMPILER" \
@@ -17,7 +18,7 @@ if [[ "$EXPORT_COMPILE_COMMANDS" == "ON" && -f "$BUILD_DIR/compile_commands.json
   ln -sfn "$BUILD_DIR/compile_commands.json" "$ROOT_DIR/compile_commands.json"
 fi
 
-run_cmd="\"$BUILD_DIR/$TARGET\""
+run_cmd="\"$BUILD_DIR/$TARGET\" < \"$INPUT_FILE\""
 cycle_cmd="cmake --build \"$BUILD_DIR\" --target \"$TARGET\" && { [ -t 1 ] && clear || true; } && $run_cmd"
 
 "$SHELL" -lc "$cycle_cmd"
