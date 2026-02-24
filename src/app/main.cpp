@@ -12,19 +12,6 @@
 
 namespace ds_exch
 {
-/*
-struct Order
-{
-    OrderId id;
-    Symbol symbol;
-    OrderType type;
-    Price price;
-    Quantity quantity;
-    TimeInForce time_in_force;
-    u64 sender_id;
-    u64 timestamp;
-};
-*/
 auto parse_u64(const std::string& token) -> std::optional<u64>
 {
     try
