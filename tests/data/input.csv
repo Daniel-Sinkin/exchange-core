@@ -1,5 +1,5 @@
 id,symbol,type,price,quantity,time_in_force,sender_id,timestamp
-1,AAPL,LimitSell,10100,10,GTC,1001,1
+1,AAPL,LimitSell,9990,10,GTC,1001,1
 2,AAPL,LimitSell,10100,15,GTC,1002,2
 3,AAPL,LimitBuy,10000,7,DAY,2001,3
 4,AAPL,LimitBuy,10000,5,DAY,2002,4
