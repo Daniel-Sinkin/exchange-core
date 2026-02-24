@@ -56,13 +56,14 @@ struct Trade
     u64 timestamp;
     u64 trade_seq;
 };
+using TradeHistory = std::vector<Trade>;
 
 class MatchingEngine
 {
   public:
     MatchingEngine(Symbol symbol) : symbol_(symbol)
     {
-        trade_record_tape_.reserve(1024);
+        trade_history_tape_.reserve(1024);
     }
 
     [[nodiscard]] auto symbol() const -> Symbol
@@ -70,14 +71,24 @@ class MatchingEngine
         return symbol_;
     }
 
-    [[nodiscard]] auto get_num_buy_levels() const -> usize
+    [[nodiscard]] auto num_buy_levels() const -> usize
     {
         return buy_levels_map_.size();
     }
 
-    [[nodiscard]] auto get_num_sell_levels() const -> usize
+    [[nodiscard]] auto num_sell_levels() const -> usize
     {
         return sell_levels_map_.size();
+    }
+
+    [[nodiscard]] auto trade_history_reference() const -> const TradeHistory&
+    {
+        return trade_history_tape_;
+    }
+
+    [[nodiscard]] auto trade_history_snapshot() const -> TradeHistory
+    {
+        return trade_history_tape_;
     }
 
     auto submit_order(const Order& order) -> bool
@@ -143,7 +154,7 @@ class MatchingEngine
             const auto fill_qty = std::min(buy_order.qty, sell_order.qty);
             buy_order.qty -= fill_qty;
             sell_order.qty -= fill_qty;
-            trade_record_tape_.emplace_back(
+            trade_history_tape_.emplace_back(
                 buy_order.id,
                 sell_order.id,
                 sell_order.price,
@@ -228,7 +239,7 @@ class MatchingEngine
 
     std::map<Price, std::queue<Order>, std::greater<Price>> buy_levels_map_{};
     std::map<Price, std::queue<Order>, std::less<Price>> sell_levels_map_{};
-    std::vector<Trade> trade_record_tape_{};
+    std::vector<Trade> trade_history_tape_{};
 
     Symbol symbol_;
 
@@ -288,8 +299,37 @@ struct std::formatter<ds_exch::MatchingEngine>
             ctx.out(),
             "MatchingEngine{{symbol={}, buy_levels={}, sell_levels={}}}",
             ds_exch::to_string(engine.symbol()),
-            engine.get_num_buy_levels(),
-            engine.get_num_sell_levels()
+            engine.num_buy_levels(),
+            engine.num_sell_levels()
+        );
+    }
+};
+
+template <>
+struct std::formatter<ds_exch::Trade>
+{
+    constexpr auto parse(std::format_parse_context& ctx) -> std::format_parse_context::iterator
+    {
+        auto it = ctx.begin();
+        if (it != ctx.end() && *it != '}')
+        {
+            throw std::format_error("invalid format specifier for ds_exch::Trade");
+        }
+        return it;
+    }
+
+    auto format(const ds_exch::Trade& trade, std::format_context& ctx) const
+        -> std::format_context::iterator
+    {
+        return std::format_to(
+            ctx.out(),
+            "Trade{{buy_id={}, sell_id={}, price={}, qty={}, timestamp={}, trade_seq={}}}",
+            trade.buy_id,
+            trade.sell_id,
+            trade.price,
+            trade.qty,
+            trade.timestamp,
+            trade.trade_seq
         );
     }
 };

@@ -154,5 +154,18 @@ int main()
     std::println("Before matching: {}\n{}", me, me.debug_snapshot());
     me.match();
     std::println("After matching: {}\n{}", me, me.debug_snapshot());
+    std::println("Trade History:");
+    const auto& trades = me.trade_history_reference();
+    if (trades.empty())
+    {
+        std::println("  (empty)");
+    }
+    else
+    {
+        for (const auto& trade : trades)
+        {
+            std::println("  - {}", trade);
+        }
+    }
     return 0;
 }
