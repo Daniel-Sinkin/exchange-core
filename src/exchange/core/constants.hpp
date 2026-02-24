@@ -21,6 +21,8 @@ inline constexpr OrderId k_invalid_order_id{std::numeric_limits<OrderId>::max()}
 
 inline constexpr char k_input_delimiter{','};
 
+inline constexpr usize k_trade_record_tape_size{1ULL << 16};
+
 namespace detail
 {  // Guardrails and invariants
 static_assert(k_kib > 0zu);

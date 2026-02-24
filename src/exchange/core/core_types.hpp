@@ -18,6 +18,7 @@ namespace ds_exch
 {
 using usize = std::size_t;
 using isize = std::ptrdiff_t;
+using iptr = std::intptr_t;
 using uptr = std::uintptr_t;
 
 using i64 = std::int64_t;

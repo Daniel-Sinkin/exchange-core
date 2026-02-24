@@ -6,6 +6,7 @@
 #include "exchange/core/matching_engine.hpp"
 
 #include <cstddef>
+#include <exception>
 #include <iostream>
 #include <optional>
 #include <print>
@@ -110,6 +111,20 @@ int main()
     using namespace ds_exch;
 
     std::ios::sync_with_stdio(false);
+    const std::string trade_history_path{"tests/data/trade_history.csv"};
+    {
+        std::ofstream trade_history_file{trade_history_path, std::ios::trunc};
+        if (!trade_history_file.is_open())
+        {
+            std::println(
+                std::cerr,
+                "Failed to open '{}' for truncation before run.",
+                trade_history_path
+            );
+            return 1;
+        }
+    }
+
     const std::vector<Order> orders = []
     {
         std::vector<Order> out{};
@@ -145,17 +160,21 @@ int main()
         return out;
     }();
 
-    MatchingEngine me{Symbol::AAPL};
+    MatchingEngine me{Symbol::AAPL, trade_history_path};
     for (const auto& order : orders)
     {
-        me.submit_order(order);
+        if (!me.submit_order(order))
+        {
+            std::println(std::cerr, "Failed to submit order: {}", order);
+            std::terminate();
+        }
     }
 
     std::println("Before matching: {}\n{}", me, me.debug_snapshot());
     me.match();
     std::println("After matching: {}\n{}", me, me.debug_snapshot());
     std::println("Trade History:");
-    const auto& trades = me.trade_history_reference();
+    const auto trades = me.active_trade_history_snapshot();
     if (trades.empty())
     {
         std::println("  (empty)");

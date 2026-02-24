@@ -6,10 +6,17 @@
 #include "exchange/core/pch.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <condition_variable>
+#include <filesystem>
 #include <format>
+#include <fstream>
+#include <iostream>
 #include <limits>
 #include <map>
+#include <mutex>
 #include <queue>
+#include <thread>
 #include <vector>
 
 namespace ds_exch
@@ -61,9 +68,29 @@ using TradeHistory = std::vector<Trade>;
 class MatchingEngine
 {
   public:
-    MatchingEngine(Symbol symbol) : symbol_(symbol)
+    explicit MatchingEngine(
+        Symbol symbol,
+        std::filesystem::path trade_history_output_path = "tests/data/trade_history.csv"
+    )
+        : trade_history_output_path_(std::move(trade_history_output_path)), symbol_(symbol)
     {
-        trade_history_tape_.reserve(1024);
+        active_trade_history_tape_.reserve(k_trade_record_tape_size);
+        passive_trade_history_tape_.reserve(k_trade_record_tape_size);
+
+        thread_trade_history_saver_ = std::thread{&MatchingEngine::trade_history_saver_task, this};
+    }
+
+    ~MatchingEngine()
+    {
+        {
+            std::scoped_lock _sl{trade_history_mutex_};
+            stop_trade_history_saver_ = true;
+        }
+        trade_history_cv_.notify_one();
+        if (thread_trade_history_saver_.joinable())
+        {
+            thread_trade_history_saver_.join();
+        }
     }
 
     [[nodiscard]] auto symbol() const -> Symbol
@@ -81,14 +108,10 @@ class MatchingEngine
         return sell_levels_map_.size();
     }
 
-    [[nodiscard]] auto trade_history_reference() const -> const TradeHistory&
+    [[nodiscard]] auto active_trade_history_snapshot() const -> TradeHistory
     {
-        return trade_history_tape_;
-    }
-
-    [[nodiscard]] auto trade_history_snapshot() const -> TradeHistory
-    {
-        return trade_history_tape_;
+        std::scoped_lock _sl{trade_history_mutex_};
+        return active_trade_history_tape_;
     }
 
     auto submit_order(const Order& order) -> bool
@@ -154,14 +177,24 @@ class MatchingEngine
             const auto fill_qty = std::min(buy_order.qty, sell_order.qty);
             buy_order.qty -= fill_qty;
             sell_order.qty -= fill_qty;
-            trade_history_tape_.emplace_back(
-                buy_order.id,
-                sell_order.id,
-                sell_order.price,
-                fill_qty,
-                std::max(buy_order.timestamp, sell_order.timestamp),
-                current_trade_seq_++
-            );
+            bool should_notify_trade_history_saver{false};
+            {
+                std::scoped_lock _sl{trade_history_mutex_};
+                active_trade_history_tape_.emplace_back(
+                    buy_order.id,
+                    sell_order.id,
+                    sell_order.price,
+                    fill_qty,
+                    std::max(buy_order.timestamp, sell_order.timestamp),
+                    current_trade_seq_++
+                );
+                should_notify_trade_history_saver =
+                    active_trade_history_tape_.size() >= k_trade_history_flush_threshold;
+            }
+            if (should_notify_trade_history_saver)
+            {
+                trade_history_cv_.notify_one();
+            }
 
             if (buy_order.qty == 0u)
             {
@@ -194,6 +227,102 @@ class MatchingEngine
     }
 
   private:
+    std::map<Price, std::queue<Order>, std::greater<Price>> buy_levels_map_{};
+    std::map<Price, std::queue<Order>, std::less<Price>> sell_levels_map_{};
+    std::vector<Trade> active_trade_history_tape_{};   // For writing
+    std::vector<Trade> passive_trade_history_tape_{};  // For offloading to disc
+    mutable std::mutex trade_history_mutex_{};
+    std::condition_variable trade_history_cv_{};
+
+    std::filesystem::path trade_history_output_path_{};
+    Symbol symbol_;
+
+    u64 current_trade_seq_{0};
+    bool stop_trade_history_saver_{false};
+
+    std::thread thread_trade_history_saver_{};
+
+    static inline constexpr auto k_trade_history_flush_threshold = k_trade_record_tape_size / 5zu;
+    static inline constexpr auto k_trade_history_flush_interval = std::chrono::milliseconds{250};
+
+    auto append_passive_trade_history_to_disk() -> bool
+    {
+        if (passive_trade_history_tape_.empty())
+        {
+            return true;
+        }
+
+        std::ofstream trade_file{trade_history_output_path_, std::ios::app};
+        if (!trade_file.is_open())
+        {
+            std::println(
+                std::cerr,
+                "failed to open trade history file '{}' for appending",
+                trade_history_output_path_.string()
+            );
+            return false;
+        }
+
+        for (const auto& trade : passive_trade_history_tape_)
+        {
+            trade_file << trade.buy_id << k_input_delimiter << trade.sell_id << k_input_delimiter
+                       << trade.price << k_input_delimiter << trade.qty << k_input_delimiter
+                       << trade.timestamp << k_input_delimiter << trade.trade_seq << '\n';
+        }
+
+        trade_file.flush();
+        return trade_file.good();
+    }
+
+    auto trade_history_saver_task() -> void
+    {
+        while (true)
+        {
+            {
+                std::unique_lock _ul{trade_history_mutex_};
+                trade_history_cv_.wait_for(
+                    _ul,
+                    k_trade_history_flush_interval,
+                    [this]
+                    {
+                        if (stop_trade_history_saver_)
+                        {
+                            return true;
+                        }
+                        return (
+                            active_trade_history_tape_.size() >= k_trade_history_flush_threshold
+                        );
+                    }
+                );
+
+                if (passive_trade_history_tape_.empty() && !active_trade_history_tape_.empty())
+                {
+                    std::swap(active_trade_history_tape_, passive_trade_history_tape_);
+                }
+
+                if (stop_trade_history_saver_ && active_trade_history_tape_.empty()
+                    && passive_trade_history_tape_.empty())
+                {
+                    return;
+                }
+            }
+
+            if (append_passive_trade_history_to_disk())
+            {
+                passive_trade_history_tape_.clear();
+            }
+            else
+            {
+                std::scoped_lock _sl{trade_history_mutex_};
+                if (stop_trade_history_saver_)
+                {
+                    passive_trade_history_tape_.clear();
+                    return;
+                }
+            }
+        }
+    }
+
     template <typename PriceComparator>
     [[nodiscard]] static auto snapshot_side_levels(
         const std::map<Price, std::queue<Order>, PriceComparator>& levels, usize max_levels
@@ -236,14 +365,6 @@ class MatchingEngine
 
         return snapshots;
     }
-
-    std::map<Price, std::queue<Order>, std::greater<Price>> buy_levels_map_{};
-    std::map<Price, std::queue<Order>, std::less<Price>> sell_levels_map_{};
-    std::vector<Trade> trade_history_tape_{};
-
-    Symbol symbol_;
-
-    u64 current_trade_seq_{0};
 };
 }  // namespace ds_exch
 
