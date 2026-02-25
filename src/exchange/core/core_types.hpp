@@ -55,6 +55,14 @@ enum class Symbol
 {
     AAPL,
 };
+[[nodiscard]] auto to_string(Symbol symbol) -> std::string
+{
+    switch (symbol)
+    {
+        case Symbol::AAPL:
+            return "AAPL";
+    }
+};
 
 enum class OrderType : u8
 {

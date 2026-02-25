@@ -21,6 +21,7 @@
 #include <numbers>        // IWYU pragma: keep
 #include <optional>       // IWYU pragma: keep
 #include <print>          // IWYU pragma: keep
+#include <queue>          // IWYU pragma: keep
 #include <ranges>         // IWYU pragma: keep
 #include <span>           // IWYU pragma: keep
 #include <sstream>        // IWYU pragma: keep
