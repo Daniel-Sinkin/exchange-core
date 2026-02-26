@@ -39,6 +39,7 @@ class MatchingEngine
 
     auto submit_order(const Order& order) -> void
     {
+        (void) order;
     }
 
     auto print() const -> void
